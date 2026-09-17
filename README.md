@@ -3,6 +3,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://www.oracle.com/java/)
 [![Spring Boot 3.x](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![JitPack](https://jitpack.io/v/com.github.vicente-md/jev-resilience-spring-boot-starter.svg)](https://jitpack.io/#com.github.vicente-md/jev-resilience-spring-boot-starter)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Spring Boot starter that brings semantic failure detection to Spring WebFlux services.
 Standard circuit breakers only see transport-level failures (5xx, timeouts, connection
