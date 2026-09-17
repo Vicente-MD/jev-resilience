@@ -1,5 +1,10 @@
 # jev-resilience-spring-boot-starter
 
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://www.oracle.com/java/)
+[![Spring Boot 3.x](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![JitPack](https://jitpack.io/v/com.github.vicente-md/jev-resilience-spring-boot-starter.svg)](https://jitpack.io/#com.github.vicente-md/jev-resilience-spring-boot-starter)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Spring Boot starter that brings semantic failure detection to Spring WebFlux services.
 Standard circuit breakers only see transport-level failures (5xx, timeouts, connection
 errors) and miss *silent failures*: HTTP 200 responses whose body encodes an error, a
@@ -128,12 +133,25 @@ mvn test -Dtest=JevEvaluationServiceMockWebServerTest
 Expected output: `Tests run: 2, Failures: 0, Errors: 0` — one test asserts a well-formed
 request/response round trip, the other asserts the fail-open behavior on a `5xx` response.
 
-To sanity-check against the **real** TypeSafe API instead, export a key and run:
+To sanity-check against the **real** TypeSafe API instead, export a key and run the
+bundled opt-in integration test — it exercises the actual `JevEvaluationService` code
+path (not just curl), and only runs when the env var is present:
 
 ```bash
 export TYPESAFE_API_KEY=sk-...
+mvn test -Dtest=JevEvaluationServiceRealApiIT
+```
+
+It sends a genuinely healthy payload and a disguised "under maintenance" payload and
+asserts Jev scores them low/high respectively — printing both `noul` scores to stdout.
+Without `TYPESAFE_API_KEY` set, this test is skipped automatically (not run in a normal
+build).
+
+Or with plain curl:
+
+```bash
 curl -s -X POST https://api.typesafe.ai/v1/systemone \
-  -H "Authorization: $TYPESAFE_API_KEY" \
+  -H "Authorization: Bearer $TYPESAFE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
         "state": "{\"status\":\"ok\",\"note\":\"system under maintenance, please retry later\"}",
@@ -149,6 +167,11 @@ curl -s -X POST https://api.typesafe.ai/v1/systemone \
 
 A response with `answers.is_silent_failure.noul` close to `1.0` confirms both your API
 key and the exact request shape the starter sends are correct.
+
+> **Note:** the TypeSafe API requires the key as a **Bearer token**
+> (`Authorization: Bearer <key>`), not a raw header value — `JevEvaluationService`
+> applies this prefix automatically, so you only ever configure the raw
+> `typesafe.jev.api-key`.
 
 ## How It Works
 

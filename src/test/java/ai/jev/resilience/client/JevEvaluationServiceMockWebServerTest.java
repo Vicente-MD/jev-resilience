@@ -71,7 +71,7 @@ class JevEvaluationServiceMockWebServerTest {
         RecordedRequest request = server.takeRequest();
         assertThat(request.getMethod()).isEqualTo("POST");
         assertThat(request.getPath()).isEqualTo("/v1/systemone");
-        assertThat(request.getHeader("Authorization")).isEqualTo("test-api-key");
+        assertThat(request.getHeader("Authorization")).isEqualTo("Bearer test-api-key");
         assertThat(request.getHeader("Content-Type")).contains("application/json");
 
         JsonNode body = objectMapper.readTree(request.getBody().readUtf8());

@@ -32,7 +32,7 @@ public class JevEvaluationService {
         this.properties = properties;
         this.webClient = webClientBuilder
                 .baseUrl(properties.getBaseUrl())
-                .defaultHeader("Authorization", properties.getApiKey())
+                .defaultHeader("Authorization", "Bearer " + properties.getApiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
