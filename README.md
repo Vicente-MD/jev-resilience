@@ -1,27 +1,30 @@
 # jev-resilience-spring-boot-starter
 
-Non-blocking Spring Boot Starter that implements a **Semantic Circuit Breaker** for
-Spring WebFlux services. Standard circuit breakers only see transport-level failures
-(5xx, timeouts). This starter also catches *silent failures* — HTTP 200 responses whose
-JSON body actually encodes an error, a stack trace, or a "System Under Maintenance"
-notice — by having [TypeSafe Jev](https://docs.typesafe.ai/introduction) evaluate the
-payload with its `Noul` primitive, off the hot path, without blocking any reactive thread.
+A Spring Boot starter that brings semantic failure detection to Spring WebFlux services.
+Standard circuit breakers only see transport-level failures (5xx, timeouts, connection
+errors) and miss *silent failures*: HTTP 200 responses whose body encodes an error, a
+stack trace, or a "system under maintenance" notice. This starter evaluates each response
+payload with [TypeSafe Jev](https://docs.typesafe.ai/introduction) and converts suspected
+silent failures into ordinary exceptions that your existing error handling can process.
 
-## Publish (JitPack)
+## Key Features
 
-JitPack builds the jar directly from a tagged GitHub release — no manual `mvn deploy`,
-no artifact hosting to manage.
+- **Reactive AOP.** An AspectJ aspect composes the Jev evaluation into the returned
+  `Mono`/`Flux` via `flatMap`. No reactive thread is ever blocked.
+- **Fail-open by design.** Any TypeSafe API error, timeout, or malformed response is
+  treated as "not a failure" (score `0.0`). A Jev outage cannot trip your circuit breaker
+  or interrupt request processing.
+- **Zero-overhead execution.** Evaluation is a single non-blocking `WebClient` call with
+  a configurable timeout (750 ms default), added to the existing reactive pipeline. No
+  extra threads, no blocking.
+- **Standard Spring error handling.** Failures surface as `SemanticFailureException`, a
+  regular `RuntimeException`: handle it with `onErrorResume`, `@ExceptionHandler`, or
+  register it in a Resilience4j `CircuitBreaker`'s `recordExceptions`.
 
-1. Push this repo to a public GitHub repository (e.g. `vicente-md/jev-resilience`).
-2. On GitHub, go to **Releases → Draft a new release**, create tag `0.1.0`, and publish.
-3. Go to [jitpack.io](https://jitpack.io), paste the repo URL, click **Look up**, then
-   **Get it** next to the `0.1.0` release. Wait for the build log to turn green.
+## Installation
 
-> JitPack derives your `groupId` from your GitHub username/org, so this starter's
-> `pom.xml` uses `com.github.vicente-md` — replace it with `com.github.<your-github-username>`
-> if you fork/publish it under a different account.
-
-## Install (in the consuming project)
+The starter is published via [JitPack](https://jitpack.io). Add the JitPack repository
+and the dependency to your `pom.xml`:
 
 ```xml
 <repositories>
@@ -38,60 +41,36 @@ no artifact hosting to manage.
 </dependency>
 ```
 
-That's it — Maven resolves the jar from JitPack and pulls in its own transitive
-dependencies (WebFlux, AOP). The consuming project also needs
-`spring-boot-starter-webflux` (usually already present).
+The consuming application is expected to provide `spring-boot-starter-webflux`.
 
-## Configure
+## Configuration
 
 ```yaml
 typesafe:
   jev:
     api-key: ${TYPESAFE_API_KEY}
-    base-url: https://api.typesafe.ai
-    model: jev-latest
+    base-url: https://api.typesafe.ai   # optional; this is the default
+    model: jev-latest                   # optional; this is the default
 ```
 
 ```bash
-export TYPESAFE_API_KEY=sk-...   # from https://console.typesafe.ai/settings/keys
+export TYPESAFE_API_KEY=sk-...   # issued at https://console.typesafe.ai/settings/keys
 ```
 
-Auto-configuration activates automatically once `typesafe.jev.api-key` is set — nothing
-else to wire up.
+Auto-configuration activates once `typesafe.jev.api-key` is set.
 
-## Use
+## Usage
 
-Annotate any WebFlux controller/service method that returns `Mono<T>` or `Flux<T>`:
+Annotate any WebFlux service method that returns `Mono<T>` or `Flux<T>` with
+`@SemanticCircuitBreaker`:
 
 ```java
-@RestController
-@RequestMapping("/payments")
-public class PaymentController {
-
-    private final WebClient paymentProviderClient;
-    private final PaymentService paymentService;
-
-    public PaymentController(WebClient.Builder builder, PaymentService paymentService) {
-        this.paymentProviderClient = builder.baseUrl("https://provider.example.com").build();
-        this.paymentService = paymentService;
-    }
-
-    @GetMapping("/{id}/status")
-    public Mono<ResponseEntity<?>> getPaymentStatus(@PathVariable String id) {
-        return paymentService.fetchStatus(id)
-                .map(ResponseEntity::ok)
-                .onErrorResume(SemanticFailureException.class, ex ->
-                        Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                .body("Provider returned a disguised failure (confidence=" + ex.getConfidenceScore() + ")")));
-    }
-}
-
 @Service
-class PaymentService {
+public class PaymentService {
 
     private final WebClient webClient;
 
-    PaymentService(WebClient.Builder builder) {
+    public PaymentService(WebClient.Builder builder) {
         this.webClient = builder.baseUrl("https://provider.example.com").build();
     }
 
@@ -105,21 +84,81 @@ class PaymentService {
 }
 ```
 
-If Jev's `noul` confidence that the response is a disguised failure exceeds the
-threshold, the `Mono` completes with a `SemanticFailureException` instead of the
-original item. Handle it with `onErrorResume` (as above), or add it to an existing
-Resilience4j `CircuitBreaker`'s `recordExceptions` so it counts toward the breaker's
-failure rate like any other exception.
+When Jev's confidence that a response is a disguised failure exceeds
+`confidenceThreshold`, the pipeline emits a `SemanticFailureException` instead of the
+original item. Handle it like any other exception:
 
-## How it works
+```java
+@RestController
+@RequestMapping("/payments")
+public class PaymentController {
 
-1. `ReactiveSemanticCircuitBreakerAspect` wraps the `Mono<T>`/`Flux<T>` returned by an
-   `@SemanticCircuitBreaker`-annotated method with `flatMap`.
-2. Each emitted item is stringified and sent to `JevEvaluationService`, which posts a
-   single `Noul` question to `POST https://api.typesafe.ai/v1/systemone` via a
-   non-blocking `WebClient`.
-3. If the returned `noul` score exceeds `confidenceThreshold`, the pipeline emits
-   `Mono.error(new SemanticFailureException(...))`; otherwise the original item passes
-   through unchanged.
-4. On any Jev transport error/timeout, the client **fails open** (returns `0.0`) so a
-   TypeSafe outage never trips your circuit breaker.
+    private final PaymentService paymentService;
+
+    public PaymentController(PaymentService paymentService) {
+        this.paymentService = paymentService;
+    }
+
+    @GetMapping("/{id}/status")
+    public Mono<ResponseEntity<?>> getPaymentStatus(@PathVariable String id) {
+        return paymentService.fetchStatus(id)
+                .map(ResponseEntity::ok)
+                .onErrorResume(SemanticFailureException.class, ex ->
+                        Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body("Provider returned a disguised failure (confidence=" + ex.getConfidenceScore() + ")")));
+    }
+}
+```
+
+`SemanticFailureException` also integrates with Resilience4j: add it to a
+`CircuitBreaker`'s `recordExceptions` and it counts toward the failure rate like any
+transport error.
+
+## Quick Check: Is It Requesting Jev Correctly?
+
+The fastest way to verify the exact HTTP request `JevEvaluationService` sends — without a
+real API key or network access — is the bundled `MockWebServer`-based test. It starts a
+local stub server, captures the request, and asserts the path, `Authorization` header, and
+JSON body match the documented `POST /v1/systemone` Noul schema:
+
+```bash
+mvn test -Dtest=JevEvaluationServiceMockWebServerTest
+```
+
+Expected output: `Tests run: 2, Failures: 0, Errors: 0` — one test asserts a well-formed
+request/response round trip, the other asserts the fail-open behavior on a `5xx` response.
+
+To sanity-check against the **real** TypeSafe API instead, export a key and run:
+
+```bash
+export TYPESAFE_API_KEY=sk-...
+curl -s -X POST https://api.typesafe.ai/v1/systemone \
+  -H "Authorization: $TYPESAFE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "state": "{\"status\":\"ok\",\"note\":\"system under maintenance, please retry later\"}",
+        "model": "jev-latest",
+        "questions": {
+          "is_silent_failure": {
+            "type": "noul",
+            "instructions": "Does this payload represent a silent failure, a maintenance window, or an error state disguised as a success?"
+          }
+        }
+      }'
+```
+
+A response with `answers.is_silent_failure.noul` close to `1.0` confirms both your API
+key and the exact request shape the starter sends are correct.
+
+## How It Works
+
+1. `ReactiveSemanticCircuitBreakerAspect` intercepts `@SemanticCircuitBreaker` methods
+   and transforms the returned `Mono<T>`/`Flux<T>` with `flatMap`.
+2. Each emitted item is serialized to a string and passed to `JevEvaluationService`,
+   which submits a single `Noul` question to `POST /v1/systemone` on the TypeSafe API
+   through a non-blocking `WebClient`.
+3. If the returned `noul` confidence score exceeds `confidenceThreshold`, the item is
+   replaced with `Mono.error(new SemanticFailureException(score, payload))`; otherwise it
+   passes through unchanged.
+4. If the Jev call fails or times out, the evaluation returns `0.0` (fail-open), so a
+   TypeSafe outage never trips the circuit breaker.
