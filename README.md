@@ -3,7 +3,6 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://www.oracle.com/java/)
 [![Spring Boot 3.x](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![JitPack](https://jitpack.io/v/com.github.vicente-md/jev-resilience-spring-boot-starter.svg)](https://jitpack.io/#com.github.vicente-md/jev-resilience-spring-boot-starter)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Spring Boot starter that brings semantic failure detection to Spring WebFlux services.
 Standard circuit breakers only see transport-level failures (5xx, timeouts, connection
@@ -119,35 +118,34 @@ public class PaymentController {
 `CircuitBreaker`'s `recordExceptions` and it counts toward the failure rate like any
 transport error.
 
-## Quick Check: Is It Requesting Jev Correctly?
+## Testing
 
-The fastest way to verify the exact HTTP request `JevEvaluationService` sends — without a
-real API key or network access — is the bundled `MockWebServer`-based test. It starts a
-local stub server, captures the request, and asserts the path, `Authorization` header, and
-JSON body match the documented `POST /v1/systemone` Noul schema:
+Two bundled tests verify the exact request that `JevEvaluationService` sends.
+
+`JevEvaluationServiceMockWebServerTest` runs offline against a local `MockWebServer` and
+asserts the path, `Authorization` header, and JSON body of the `POST /v1/systemone` Noul
+request, plus the fail-open behavior on a 5xx response:
 
 ```bash
 mvn test -Dtest=JevEvaluationServiceMockWebServerTest
 ```
 
-Expected output: `Tests run: 2, Failures: 0, Errors: 0` — one test asserts a well-formed
-request/response round trip, the other asserts the fail-open behavior on a `5xx` response.
+Expected result: `Tests run: 2, Failures: 0, Errors: 0`.
 
-To sanity-check against the **real** TypeSafe API instead, export a key and run the
-bundled opt-in integration test — it exercises the actual `JevEvaluationService` code
-path (not just curl), and only runs when the env var is present:
+`JevEvaluationServiceRealApiIT` is an opt-in check against the real TypeSafe API. It runs
+only when `TYPESAFE_API_KEY` is set, sends one healthy payload and one disguised
+maintenance notice, asserts that the returned scores are low and high respectively, and
+prints both `noul` scores:
 
 ```bash
 export TYPESAFE_API_KEY=sk-...
 mvn test -Dtest=JevEvaluationServiceRealApiIT
 ```
 
-It sends a genuinely healthy payload and a disguised "under maintenance" payload and
-asserts Jev scores them low/high respectively — printing both `noul` scores to stdout.
-Without `TYPESAFE_API_KEY` set, this test is skipped automatically (not run in a normal
-build).
+Without the environment variable, this test is skipped and does not run in a normal
+build.
 
-Or with plain curl:
+The same request shape with curl:
 
 ```bash
 curl -s -X POST https://api.typesafe.ai/v1/systemone \
@@ -165,13 +163,12 @@ curl -s -X POST https://api.typesafe.ai/v1/systemone \
       }'
 ```
 
-A response with `answers.is_silent_failure.noul` close to `1.0` confirms both your API
-key and the exact request shape the starter sends are correct.
+A response with `answers.is_silent_failure.noul` close to `1.0` confirms that both the
+API key and the request shape are correct.
 
-> **Note:** the TypeSafe API requires the key as a **Bearer token**
-> (`Authorization: Bearer <key>`), not a raw header value — `JevEvaluationService`
-> applies this prefix automatically, so you only ever configure the raw
-> `typesafe.jev.api-key`.
+> **Note:** `JevEvaluationService` sends the configured key as
+> `Authorization: Bearer <api-key>`. Configure only the raw key value in
+> `typesafe.jev.api-key`; the `Bearer ` prefix is added by the starter.
 
 ## How It Works
 
