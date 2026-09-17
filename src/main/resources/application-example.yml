@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: my-reactive-service
+
+# TypeSafe Jev configuration — powers @SemanticCircuitBreaker
+typesafe:
+  jev:
+    api-key: ${TYPESAFE_API_KEY}        # required; from https://console.typesafe.ai/settings/keys
+    base-url: https://api.typesafe.ai   # optional, this is the default
+    model: jev-latest                   # optional, this is the default
+    timeout: 750ms                      # optional, WebClient call timeout
+    question-key: is_silent_failure     # optional, key used in the Jev request/response
+    instructions: >
+      Does this payload represent a silent failure, a maintenance window,
+      or an error state disguised as a success?
