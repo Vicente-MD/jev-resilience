@@ -7,33 +7,21 @@ JSON body actually encodes an error, a stack trace, or a "System Under Maintenan
 notice — by having [TypeSafe Jev](https://docs.typesafe.ai/introduction) evaluate the
 payload with its `Noul` primitive, off the hot path, without blocking any reactive thread.
 
-## Build & publish the starter
-
-**Option A — JitPack (recommended, no server to run)**
+## Publish (JitPack)
 
 JitPack builds the jar directly from a tagged GitHub release — no manual `mvn deploy`,
 no artifact hosting to manage.
 
-1. Push this repo to a public GitHub repository (e.g. `vicentedamasceno/jev-resilience`).
+1. Push this repo to a public GitHub repository (e.g. `vicente-md/jev-resilience`).
 2. On GitHub, go to **Releases → Draft a new release**, create tag `0.1.0`, and publish.
 3. Go to [jitpack.io](https://jitpack.io), paste the repo URL, click **Look up**, then
    **Get it** next to the `0.1.0` release. Wait for the build log to turn green.
 
-> **Note:** JitPack derives your `groupId` from your GitHub username/org, so this
-> starter's `pom.xml` uses `com.github.vicentedamasceno` — replace it with
-> `com.github.<your-github-username>` if you fork/publish it under a different account.
-
-**Option B — Local install / private repo**
-
-```bash
-cd jev-resilience-spring-boot-starter
-mvn clean install          # runs tests, installs the jar into ~/.m2
-# or: mvn deploy            # to a shared Nexus/Artifactory/GitHub Packages repo
-```
+> JitPack derives your `groupId` from your GitHub username/org, so this starter's
+> `pom.xml` uses `com.github.vicente-md` — replace it with `com.github.<your-github-username>`
+> if you fork/publish it under a different account.
 
 ## Install (in the consuming project)
-
-**If published via JitPack:**
 
 ```xml
 <repositories>
@@ -44,23 +32,15 @@ mvn clean install          # runs tests, installs the jar into ~/.m2
 </repositories>
 
 <dependency>
-    <groupId>com.github.vicentedamasceno</groupId>
+    <groupId>com.github.vicente-md</groupId>
     <artifactId>jev-resilience-spring-boot-starter</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
-**If installed locally / from a private repo:**
-
-```xml
-<dependency>
-    <groupId>com.github.vicentedamasceno</groupId>
-    <artifactId>jev-resilience-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
-</dependency>
-```
-
-The consuming project also needs `spring-boot-starter-webflux` (usually already present).
+That's it — Maven resolves the jar from JitPack and pulls in its own transitive
+dependencies (WebFlux, AOP). The consuming project also needs
+`spring-boot-starter-webflux` (usually already present).
 
 ## Configure
 
