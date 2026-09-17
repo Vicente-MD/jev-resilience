@@ -1,8 +1,7 @@
-# jev-resilience-spring-boot-starter
+# jev-resilience
 
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue.svg)](https://www.oracle.com/java/)
 [![Spring Boot 3.x](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![JitPack](https://jitpack.io/v/com.github.vicente-md/jev-resilience-spring-boot-starter.svg)](https://jitpack.io/#com.github.vicente-md/jev-resilience-spring-boot-starter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A Spring Boot starter that brings semantic failure detection to Spring WebFlux services.
@@ -41,8 +40,8 @@ and the dependency to your `pom.xml`:
 
 <dependency>
     <groupId>com.github.vicente-md</groupId>
-    <artifactId>jev-resilience-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <artifactId>jev-resilience</artifactId>
+    <version>0.1.1</version>
 </dependency>
 ```
 

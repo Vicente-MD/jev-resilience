@@ -12,7 +12,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.web.reactive.function.client.WebClient;
 
 /**
- * Auto-configuration for the {@code jev-resilience-spring-boot-starter}. Registers the
+ * Auto-configuration for {@code jev-resilience}. Registers the
  * reactive {@link WebClient.Builder}, {@link JevEvaluationService}, and
  * {@link ReactiveSemanticCircuitBreakerAspect} beans required to power
  * {@code @SemanticCircuitBreaker}.

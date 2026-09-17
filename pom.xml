@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.vicente-md</groupId>
-    <artifactId>jev-resilience-spring-boot-starter</artifactId>
-    <version>0.1.0</version>
+    <artifactId>jev-resilience</artifactId>
+    <version>0.1.1</version>
     <packaging>jar</packaging>
 
-    <name>jev-resilience-spring-boot-starter</name>
+    <name>jev-resilience</name>
     <description>
         Non-blocking Spring Boot Starter implementing a "Semantic Circuit Breaker" for Spring WebFlux,
         using TypeSafe Jev's Noul primitive to detect silent failures (HTTP 200 responses whose payload
